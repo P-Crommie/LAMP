@@ -1,0 +1,88 @@
+---
+- name: Install mysql_DB
+  hosts: _ansible_dbNode
+  gather_facts: no
+  vars_files:
+    - variables.yml
+  become: yes
+
+  tasks:
+    - name: install mysql and dependencies
+      apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: yes
+      loop:
+        - mysql-server
+        - mysql-client
+        - python3-mysqldb
+        - libmysqlclient-dev
+      become: yes
+
+    - name: start and enable mysql_DB service
+      service:
+        name: mysql
+        state: started
+        enabled: yes
+
+    - name: Sets the root password
+      become: yes
+      mysql_user:
+        login_user: root
+        login_password: "{{ db_root_password }}"
+        name: root
+        password: "{{ db_root_password }}"
+        check_implicit_admin: true
+
+    - name: Create user with password
+      mysql_user:
+        login_user: root
+        login_password: "{{ db_root_password }}"
+        name: "{{ db_user }}"
+        password: "{{ db_pass }}"
+        priv: "*.*:ALL"
+        host: "%"
+        state: present
+
+    - name: create db
+      mysql_db:
+        login_user: root
+        login_password: "{{ db_root_password }}"
+        name: "{{ db_name }}"
+        state: present
+
+    - name: Removes the MySQL test database
+      mysql_db:
+        name: test
+        state: absent
+        login_user: root
+        login_password: "{{ db_root_password }}"
+
+    - name: Copy database dump file
+      copy:
+        src: assets/db-load-script.sql
+        dest: /tmp/db_load_script.sql
+        owner: root
+        mode: "755"
+
+    - name: Load data into ecomdb
+      mysql_db:
+        name: "{{ db_name }}"
+        state: import
+        target: /tmp/db_load_script.sql
+        login_user: root
+        login_password: "{{ db_root_password }}"
+
+    - name: Enable remote login to mysql
+      lineinfile:
+        path: /etc/mysql/mysql.conf.d/mysqld.cnf
+        regexp: "^bind-address"
+        line: "bind-address = 0.0.0.0"
+        backup: yes
+      notify:
+        - Restart mysql
+  handlers:
+    - name: Restart mysql
+      service:
+        name: mysql
+        state: restarted

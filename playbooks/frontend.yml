@@ -1,0 +1,49 @@
+---
+- name: configure httpd
+  hosts: _ansible_frontendNode
+  gather_facts: no
+  vars_files:
+    - variables.yml
+  become: yes
+
+  tasks:
+    - name: update repo
+      apt:
+        update_cache: yes
+
+    - name: Install httpd server
+      apt:
+        name: ["apache2", "git", "php", "php-mysql"]
+        state: present
+
+    - name: Clone Git repository
+      become: yes
+      git:
+        repo: https://github.com/kodekloudhub/learning-app-ecommerce.git
+        dest: /home/ubuntu/repo
+
+    - name: Copy files
+      copy:
+        src: /home/ubuntu/repo/
+        dest: /var/www/html/
+        remote_src: yes
+
+    - name: Replace IP address
+      replace:
+        path: /var/www/html/index.php
+        regexp: '172\.20\.1\.101'
+        replace: "{{ db_host }}"
+        
+    - name: Check if index.html exists
+      stat:
+        path: /var/www/html/index.html
+      register: index_html
+
+    - name: move index.html file
+      command: mv /var/www/html/index.html /var/www/html/index.html.bak
+      when: index_html.stat.exists
+
+    - name: Start httpd service
+      service:
+        name: apache2
+        state: started

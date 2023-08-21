@@ -1,0 +1,5 @@
+db_user: ecomuser
+db_pass: ecompassword
+db_name: ecomdb
+db_root_password: 123@admin
+db_host: 10.0.1.40

@@ -1,0 +1,19 @@
+---
+plugin: aws_ec2
+aws_profile: crommie@mine
+
+regions:
+  - "eu-west-1"
+
+keyed_groups:
+  - key: tags.Name
+
+filters:
+  tag:Name: 
+    - "*Node*"
+  tag:env: dev  
+  instance-state-name: running
+
+compose:
+  ansible_host: public_ip_address
+  
